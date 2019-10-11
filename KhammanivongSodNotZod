@@ -1,0 +1,981 @@
+//AUTHOR: Ponsavanh Khammanivong
+//COURSE: CPT 187
+//PURPOSE: The purpose of this class is to make construction plans
+//STARTDATE: 11 OCTOBER, 2019
+
+package edu.cpt187.khammanivong.participation;
+
+import java.util.Scanner;
+
+public class MainClass 
+{
+	//declare main class constants
+	public static final String[] MENU_OPTIONS = {"Load Inventory", "Create Order", "Quit"};
+
+	public static void main(String[] args) 
+	{
+		//declare and initialize all local variables and constants
+		Scanner input = new Scanner(System.in);
+		
+		String userName = "";
+		char menuSelection = ' ';
+		
+		//instantiate new objects
+		SodOrder mySodOrder = new SodOrder();
+		Inventory currentInventory = new Inventory();
+		OrderWriter sodOrders = new OrderWriter();
+		
+		//call in welcome banner method
+		displayWelcomeBanner();
+		
+		//assign userName variable
+		userName = getUserName(input);
+		
+		//assign menuSelection variable
+		menuSelection = validateMainMenu(input);
+		
+		//while loop to let user shop until they decide to stop
+		while(menuSelection != 'Q')
+		{
+			// IF/ELSE to see if user is loading stocks or not
+			if(menuSelection == 'A')
+			{
+				currentInventory.setLoadItems(getFileName(input));
+				// IF/ELSE to see if record count < 0
+				if(currentInventory.getRecordCount() < 0)
+				{
+					displayNotOpen();
+				}
+				else
+				{
+					displayRecordReport(currentInventory.getRecordCount());
+					mySodOrder.setCountArrays(currentInventory.getRecordCount());
+				} //END OF IF/ELSE
+			}
+			else
+			{
+				//prompt user to search for item index
+				currentInventory.setSearchIndex(validateSearchValue(input));
+				//validate search index
+				if(currentInventory.getSearchIndex() < 0)
+				{
+					displayNotFound();
+				}
+				else
+				{
+					//validate item menu
+					mySodOrder.setItemSelection(currentInventory.getSearchIndex());
+					mySodOrder.setItemName(currentInventory.getItemNames());
+					mySodOrder.setItemPrice(currentInventory.getItemPrices());
+					displaySearchResults(currentInventory.getCurrentID(), mySodOrder.getItemName(), mySodOrder.getItemPrice());
+					//validate how many items
+					mySodOrder.setHowMany(validateHowMany(input));
+					// IF/ELSE to check if there any stocks left
+					if(mySodOrder.getHowMany() > mySodOrder.getInStockCount(currentInventory.getInStockCounts()))
+					{
+						displayOutOfStock();
+					}
+					else
+					{
+						//validate discount selection
+						mySodOrder.setDiscountType(validateDiscountMenu(input, mySodOrder.getDiscountNames(), mySodOrder.getDiscountRates()));
+						//set discount names and prices accordingly
+						mySodOrder.setDiscountName(currentInventory.getDiscountNames());
+						mySodOrder.setDiscountRate(currentInventory.getDiscountRates());
+						mySodOrder.setDecreaseInStock(currentInventory);
+
+						//set the prize name randomly
+						mySodOrder.setPrizeName();
+						sodOrders.setWriteOrder(currentInventory.getCurrentID(), mySodOrder.getItemName(), mySodOrder.getItemPrice(), mySodOrder.getHowMany(), mySodOrder.getTotalCost());
+						
+						// IF/ELSE to check if user used a discount or not
+						if(mySodOrder.getDiscountRate() > 0.0)
+						{
+							//call in overloaded item receipt method
+							displayItemReceipt(mySodOrder.getItemName(), mySodOrder.getItemPrice(), mySodOrder.getHowMany(), mySodOrder.getDiscountName(), mySodOrder.getDiscountRate(), mySodOrder.getDiscountAmount(), mySodOrder.getDiscountPrice(), mySodOrder.getSubTotal(), mySodOrder.getTaxRate(), mySodOrder.getTaxAmount(), mySodOrder.getTotalCost(), mySodOrder.getPrizeName());
+						}
+						else
+						{
+							displayItemReceipt(mySodOrder.getItemName(), mySodOrder.getItemPrice(), mySodOrder.getHowMany(), mySodOrder.getSubTotal(), mySodOrder.getTaxRate(), mySodOrder.getTaxAmount(), mySodOrder.getTotalCost(), mySodOrder.getPrizeName());
+						} //END OF IF/ELSE
+					} //END OF IF/ELSE
+				} //END OF IF/ELSE
+			} //END OF IF/ELSE
+			
+			//modify LCV with update read menuSelection
+			menuSelection = validateMainMenu(input);
+			
+		} //END OF while(menuSelection != 'Q')
+		
+		if(mySodOrder.getTotalCost() > 0.0)
+		{
+			displayFinalReport(userName, mySodOrder.getDiscountCounts(), mySodOrder.getItemCounts(), mySodOrder.getPrizeCounts(), currentInventory.getInStockCounts(), currentInventory.getItemNames(), currentInventory.getRecordCount());
+			currentInventory.setLoadItems(sodOrders.getFileName(), sodOrders.getRecordCount());
+			displayOrderReport(currentInventory.getItemIDs(), currentInventory.getItemNames(), currentInventory.getItemPrices(), currentInventory.getQuantity(), currentInventory.getOrderCosts(), sodOrders.getRecordCount());
+		}
+		
+		//display farewell message
+		displayFarewellMessage(userName);
+	} //END OF main method
+	
+	//displays that there are no more stocks
+	public static void displayOutOfStock() 
+	{
+		System.out.println("\nUh oh! It appears that we are either\nout of stock or don't have enough items.");
+		System.out.println("\nYou will either have to create a new order\nor load up new inventory.");
+	} //END OF displayOutOfStock
+	
+	//displays that the file can't open
+	public static void displayNotOpen()
+	{
+		System.out.println("\nUh oh! It appears that the file either wasn't\nfound or could not be open.");
+	} //END OF displayNotOpen
+	
+	//displays that item index was not found
+	public static void displayNotFound()
+	{
+		System.out.println("\nIt appears as though that item was not found.");
+		System.out.println("\nPlease make sure you entered a proper item ID\nor load new inventory.");
+	} //END OF displayNotFound
+	
+	//get file name
+	public static String getFileName(Scanner borrowedInput)
+	{
+		System.out.print("\nPlease enter the full file name: ");
+		return borrowedInput.next();
+	} //END OF getFileName
+	
+	//validates search index
+	public static String validateSearchValue(Scanner borrowedInput)
+	{
+		String localSearch = "";
+		System.out.print("\nPlease enter the desired item ID: ");
+		localSearch = String.valueOf(borrowedInput.nextInt());
+		while(Integer.parseInt(localSearch) < 0)
+		{
+			System.out.println("\n~~~Invalid selection~~~");
+			System.out.print("Please enter the desired item ID: ");
+			localSearch = String.valueOf(borrowedInput.nextInt());
+		}
+		return localSearch;
+	} //END OF validateSearchValue
+
+	//welcome banner method
+	public static void displayWelcomeBanner()
+	{
+		System.out.println("Welcome to the SodNotZod program today!");
+		System.out.println("This program will allow you to \n make plans for a construction.");
+	} //END OF welcomeBanner()
+	
+	//method to get user name
+	public static String getUserName(Scanner borrowedInput)
+	{
+		String localUserName = "";
+		System.out.print("\nTo begin, please enter your first name: ");
+		localUserName = borrowedInput.nextLine();
+		System.out.println("\nThank you for joining us today, " + localUserName + "!");
+		return localUserName;
+	} //END OF getUserName
+	
+	//display main menu method
+	public static void displayMainMenu()
+	{
+		//Main Menu
+		System.out.println("\n~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~");
+		System.out.println("MAIN MENU OPTIONS");
+		System.out.println("~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~");
+		System.out.println();
+		System.out.printf("%-9s%-10s", "[A] to:", MENU_OPTIONS[0]);
+		System.out.printf("%-10s%-10s", "\n[B] to:", MENU_OPTIONS[1]);
+		System.out.printf("%-10s%-10s", "\n[Q] to:", MENU_OPTIONS[2]);
+		System.out.print("\n\nPlease enter the letter for your selection here: ");
+	} //END OF displayMainMenu
+	
+	//method to validate user's main menu selection
+	public static char validateMainMenu(Scanner borrowedInput)
+	{
+		char localSelection = ' ';
+		displayMainMenu();
+		localSelection = borrowedInput.next().toUpperCase().charAt(0);
+		//validation loop
+		while (localSelection != 'A' && localSelection != 'B' && localSelection != 'Q')
+		{
+			System.out.println("\n~~~Invalid selection~~~");
+			//Main Menu recalled
+			displayMainMenu();
+			localSelection = borrowedInput.next().toUpperCase().charAt(0);
+		} //END OF validation loop
+		return localSelection;
+	} //END OF validateMainMenu
+	
+	//display search results
+	public static void displaySearchResults(int borrowedItemID, String ItemNames, double ItemPrices)
+	{		
+		System.out.printf("%-15s", "\nSearch Results");
+		System.out.printf("%-10s%-17s%-15s", "\nID", "Item", "Price");
+		System.out.println();
+		System.out.printf("%-9d%-17s%-1s%-15.2f", borrowedItemID, ItemNames, "$", ItemPrices);
+	} //END OF  displayItemMenu
+	
+	//Validate how many items to purchase
+	public static int validateHowMany(Scanner borrowedInput)
+	{
+		//local variable
+		int localHowMany = 0;
+		System.out.println("\n\nFor this program you must purchase at \nleast 1 amount of any item.");
+		System.out.print("\nHow many items would you like to buy?: ");
+		localHowMany = borrowedInput.nextInt();
+		//validation loop to test for proper integer
+		while(localHowMany < 1)
+		{
+			System.out.println("\n~~~Invalid selection~~~");
+			System.out.println("\nPlease select at least 1 of any item.");
+			System.out.print("\nHow many items would you like to buy?: ");
+			localHowMany = borrowedInput.nextInt();
+		}
+		return localHowMany;
+	} //END OF validateHowMany
+	
+	//Validates how many inventory to load
+	public static int[] validateStockCount(Scanner borrowedInput)
+	{
+		//local variable
+		int[] localStockCount = new int[3];
+		//set index[0] for array
+		System.out.println("\nFor this program you must load at least 1 stock.");
+		System.out.print("\nHow many stocks would you like to\nload for premium sods?: ");
+		localStockCount[0] = borrowedInput.nextInt();
+		//validation loop to test for proper integer
+		while(localStockCount[0] < 1)
+		{
+			System.out.println("\n~~~Invalid selection~~~");
+			System.out.println("\nPlease load at least 1 stock.");
+			System.out.print("\nHow many stocks would you like to\nload for premium sods?: ");
+			localStockCount[0] = borrowedInput.nextInt();
+		}
+		
+		//set index[1] for array
+		System.out.println("\nPlease load at least 1 stock for this item as well.");
+		System.out.print("\nHow many stocks would you like to\nload for special sods?: ");
+		localStockCount[1] = borrowedInput.nextInt();
+		//validation loop to test for proper integer
+		while(localStockCount[1] < 1)
+		{
+			System.out.println("\n~~~Invalid selection~~~");
+			System.out.println("\nPlease load at least 1 stock.");
+			System.out.print("\nHow many stocks would you like to\nload for special sods?: ");
+			localStockCount[1] = borrowedInput.nextInt();
+		}
+		//set index[2] for array
+		System.out.println("\nPlease load at least 1 stock.");
+		System.out.print("\nHow many stocks would you like to\nload for basic sods?: ");
+		localStockCount[2] = borrowedInput.nextInt();
+		//validation loop to test for proper integer
+		while(localStockCount[2] < 1)
+		{
+			System.out.println("\n~~~Invalid selection~~~");
+			System.out.println("\nPlease load at least 1 stock.");
+			System.out.print("\nHow many stocks would you like to\nload for basic sods?: ");
+			localStockCount[2] = borrowedInput.nextInt();
+		}
+		return localStockCount;
+	} //END OF validateStockCount
+	
+	//Display discount menu
+	public static void displayDiscountMenu(String[] DiscountNames, double[] DiscountRates)
+	{
+		//Discount Menu
+		System.out.println("\n~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~");
+		System.out.println("DISCOUNT MENU OPTIONS");
+		System.out.println("~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~");
+		System.out.println();
+		
+		System.out.printf("%-6s%-9s%4s%-2.0f%-5s", "[A]: ", DiscountNames[0], "for ", DiscountRates[0]*100, "% off");
+		System.out.printf("%-7s%-9s%4s%-2.0f%-5s", "\n[B]: ", DiscountNames[1], "for ", DiscountRates[1]*100, "% off");
+		System.out.printf("%-7s%-9s%4s%-1.0f%-5s", "\n[C]: ", DiscountNames[2], "for ", DiscountRates[2]*100, "%  off");
+		System.out.print("\n\nPlease enter the letter for your selection here: ");
+	} //END OF displayDiscountMenu
+	
+	//validate discount chosen
+	public static char validateDiscountMenu(Scanner borrowedInput, String[] DiscountNames, double[] DiscountPrices)
+	{
+		//local variable
+		char localSelection = ' ';
+		displayDiscountMenu(DiscountNames, DiscountPrices);
+		localSelection = borrowedInput.next().toUpperCase().charAt(0);
+		//validation loop
+		while(localSelection != 'A' && localSelection != 'B' && localSelection != 'C')
+		{
+			System.out.println("\n~~~Invalid selection~~~");
+			displayDiscountMenu(DiscountNames, DiscountPrices);
+			localSelection = borrowedInput.next().toUpperCase().charAt(0);
+		}
+		return localSelection;
+	} //END OF validateDiscountSelection
+	
+	//display item receipt
+	public static void displayItemReceipt(String borrowedItemName, double borrowedItemPrice, int borrowedHowMany, double borrowedSubTotal, double borrowedTaxRate, double borrowedTaxAmount, double borrowedTotalCost, String borrowedPrizeName)
+	{
+		//Item Receipt
+		System.out.println("\n~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~");
+		System.out.println("ITEM RECEIPT");
+		System.out.println("~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~");
+		System.out.println();
+		System.out.printf("%-19s%-6s", "Description", "Amount");
+		System.out.println();
+		System.out.printf("%-20s%s", "\nItem purchased:", borrowedItemName);
+		System.out.printf("%-20s%1s%-3.2f", "\nItem price:", "$",borrowedItemPrice);
+		System.out.printf("%-20s%d", "\nNumber of items:", borrowedHowMany);
+		System.out.println();
+		System.out.printf("%-20s%1s%-5.2f", "\nSub total:", "$", borrowedSubTotal);
+		System.out.printf("%-20s%-3.1f%-1s", "\nTax Rate:", borrowedTaxRate*100, "%");
+		System.out.printf("%-20s%1s%-5.2f", "\nTax Amount:", "$",borrowedTaxAmount);
+		System.out.printf("%-20s%1s%.2f", "\nTotal cost:", "$", borrowedTotalCost);
+		System.out.println();
+		System.out.printf("%-20s%s", "\nPrize won:", borrowedPrizeName);
+		System.out.println();
+	} //END OF displayItemReceipt
+	
+	//overloaded method; display item receipt with discount information
+	public static void displayItemReceipt(String borrowedItemName, double borrowedItemPrice, int borrowedHowMany, String borrowedDiscountName, double borrowedDiscountRate, double borrowedDiscountAmount, double borrowedDiscountPrice, double borrowedSubTotal, double borrowedTaxRate, double borrowedTaxAmount, double borrowedTotalCost, String borrowedPrizeName)
+	{
+		//Item Receipt
+		System.out.println("\n~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~");
+		System.out.println("ITEM RECEIPT");
+		System.out.println("~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~");
+		System.out.println();
+		System.out.printf("%-19s%-6s", "Description", "Amount");
+		System.out.println();
+		System.out.printf("%-20s%s", "\nItem purchased:", borrowedItemName);
+		System.out.printf("%-20s%1s%-3.2f", "\nItem price:", "$",borrowedItemPrice);
+		System.out.printf("%-20s%d", "\nNumber of items:", borrowedHowMany);
+		System.out.println();
+		System.out.printf("%-20s%s", "\nDiscount Type:", borrowedDiscountName);
+		System.out.printf("%-20s%-2.0f%-1s", "\nDiscount rate:", borrowedDiscountRate*100, "%");
+		System.out.printf("%-20s%1s%-5.2f", "\nDiscount Amount:", "$", borrowedDiscountAmount);
+		System.out.printf("%-20s%1s%-5.2f", "\nDiscount price:", "$", borrowedDiscountPrice);
+		System.out.println();
+		System.out.printf("%-20s%1s%-5.2f", "\nSub total:", "$", borrowedSubTotal);
+		System.out.printf("%-20s%-3.1f%-1s", "\nTax Rate:", borrowedTaxRate*100, "%");
+		System.out.printf("%-20s%1s%-5.2f", "\nTax Amount:", "$",borrowedTaxAmount);
+		System.out.printf("%-20s%1s%.2f", "\nTotal cost:", "$", borrowedTotalCost);
+		System.out.println();
+		System.out.printf("%-20s%s", "\nPrize won:", borrowedPrizeName);
+		System.out.println();
+	} //END OF displayItemReceipt
+	
+	//display final report
+	public static void displayFinalReport(String borrowedUserName, int[] DiscountCounts, int[] ItemCounts, int[] PrizeCounts, int[] inStockCounts, String[] borrowedItemNames, int inventoryRecordCount)
+	{
+		//local variables
+		int localItemCount = 0;
+		int localStockCount = 0;
+		//Final Report
+		System.out.println("\n~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~");
+		System.out.println("Final Report");
+		System.out.println("~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~ ~~~~");
+		System.out.println();
+		System.out.println("Finally, " + borrowedUserName + ", let's take a look at your final report");
+		System.out.printf("%-30s%-6s", "\nDescription", "Amount");
+		System.out.println();
+		System.out.printf("%-30s%d", "\nMember discount count:", DiscountCounts[0]);
+		System.out.printf("%-30s%d", "\nSenior discount count:", DiscountCounts[1]);
+		System.out.printf("%-30s%d", "\nNo discount count:", DiscountCounts[2]);
+		System.out.println();
+		while(localItemCount < inventoryRecordCount)
+		{
+			System.out.printf("\n%s%s%-1s%-1d", borrowedItemNames[localItemCount]," count:", " ", ItemCounts[localItemCount]);
+			localItemCount++;
+		}
+		System.out.println();
+		System.out.printf("%-30s%d", "\nToy count:", PrizeCounts[0]);
+		System.out.printf("%-30s%d", "\nSnack discount count:", PrizeCounts[1]);
+		System.out.printf("%-30s%d", "\nTrophy count:", PrizeCounts[2]);
+		System.out.println();
+		while(localStockCount < inventoryRecordCount)
+		{
+			System.out.printf("\n%s%s%s%-1d", borrowedItemNames[localStockCount]," stock count:", " ",inStockCounts[localStockCount]);
+			localStockCount++;
+		}
+		System.out.println();
+		
+	} //END OF displayFinalReport
+	
+	//display order report
+	public static void displayOrderReport(int[] borrowedItemID, String[] borrowedItemName, double[] borrowedItemPrice, int[] borrowedQuantity, double[] borrowedTotal, int borrowedOrderRecord)
+	{
+		int orderCount = 0;
+		System.out.println("\nORDER REPORT");	
+		System.out.printf("%-6s%-18s%-8s%-9s%-8s", "ID", "Item Name", "Price", "QTY", "TOTAL");
+		System.out.println();
+		while(orderCount < borrowedOrderRecord)
+		{
+			System.out.printf("%-6d%-17s%-1s%-8.2f%-8d%-1s%-15.2f", borrowedItemID[orderCount], borrowedItemName[orderCount], "$", borrowedItemPrice[orderCount], borrowedQuantity[orderCount], "$", borrowedTotal[orderCount]);
+			System.out.println();
+			orderCount++;
+		} //END OF WHILE LOOP
+		
+	}
+	
+	//display record report
+	public static void displayRecordReport( int borrowedRecordCount)
+	{
+		System.out.println("\nRECORD REPORT");
+		System.out.println("The current file contains: " + borrowedRecordCount + " records.");
+	}
+	
+	//Farewell Message
+	public static void displayFarewellMessage(String borrowedUserName)
+	{
+		System.out.println();
+		System.out.println("Thank you, " + borrowedUserName + ", for using this program today.\nHave a great day!");
+	} //END OF Farewell Message
+	
+} //END OF MainClass Class
+
+//AUTHOR: Ponsavanh Khammanivong
+//COURSE: CPT 187
+//PURPOSE: The purpose of this class is to create files for a construction planning program.
+//STARTDATE: 10 OCTOBER, 2019
+
+package edu.cpt187.khammanivong.participation;
+
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.io.IOException;
+
+public class OrderWriter
+{
+	
+	//declare and initialize class CONSTANTS
+	private final String MASTER_FILE_NAME = "purchaseOrder.txt";
+	private final int NOT_FOUND = -1;
+	
+	//declare and initialize non-class CONSTANTS
+
+	private int recordCount = 0;
+
+	public OrderWriter() 
+	{
+	} //END OF CONSTRUCTOR
+	
+	//set method; sets the write orders
+	public void setWriteOrder(int borrowedItemID, String borrowedItemName, double borrowedItemPrice, int borrowedQuantity, double borrowedOrderCost) 
+	{
+		try
+		{
+			PrintWriter filePW = new PrintWriter(new FileWriter(MASTER_FILE_NAME, true));
+			filePW.printf("%d\t%s\t%.2f\t%d\t%.2f\r", borrowedItemID, borrowedItemName, borrowedItemPrice, borrowedQuantity, borrowedOrderCost);
+			recordCount++;
+			filePW.close();
+		} //END OF TRY
+		catch (IOException ex)
+		{
+			recordCount = NOT_FOUND;
+		} //END OF CATCH
+	} //END OF setWriteOrder
+	
+	//get method; gets the file name
+	public String getFileName()
+	{
+		return MASTER_FILE_NAME;
+	} //END OF getFileName
+	
+	//get method; gets the record count
+	public int getRecordCount()
+	{
+		return recordCount;
+	} //END OF getRecordCount
+
+} //END OF OrderWriter Class
+
+//AUTHOR: Ponsavanh Khammanivong
+//COURSE: CPT 187
+//PURPOSE: The purpose of this class is to be the blueprint for a construction planning program
+//STARTDATE: 10 OCTOBER, 2019
+
+package edu.cpt187.khammanivong.participation;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Scanner;
+
+public class Inventory 
+{
+	
+	//declare and initialize class constants
+	private final String[] DISCOUNT_NAMES = {"Member", "Senior", "None"};
+	private final double[] DISCOUNT_RATES = {0.25, 0.15, 0.0};
+	private final String[] PRIZE_NAMES = {"Toy", "Snack", "Trophy"};
+	private final int MAX_ITEMS = 5;
+	private final int NOT_FOUND = -1;
+	private final int RESET_VALUE = 0;
+	
+	//declare and initialize all non-CONSTANT class attributes
+	private int[] itemIDs = new int[MAX_ITEMS];
+	private String[] itemNames = new String[MAX_ITEMS];
+	private double[] itemPrices = new double[MAX_ITEMS];
+	private int[] inStockCounts = new int[MAX_ITEMS];
+	private int[] itemQuantity;
+	private double[] orderCost;
+	private int itemSearchIndex = 0;
+	private int recordCount = 0;
+	
+	//Inventory class constructor
+	public Inventory() 
+	{
+	} //END OF Inventory constructor
+
+	//set method; sets reduce stock
+	public void setReduceStock(int borrowedHowMany)
+	{
+		inStockCounts[itemSearchIndex] = inStockCounts[itemSearchIndex] - borrowedHowMany;
+	} //END OF setReduceStock
+	
+	//set method; loads items into inventory from file
+	public void setLoadItems(String borrowedFileName)
+	{
+		//resets the value each time the method is invoked
+		recordCount = RESET_VALUE; 
+		
+		//try block
+		try
+		{
+			//declare all local variables
+			Scanner infile = new Scanner(new FileInputStream(borrowedFileName));
+			//.hasNext() will be False if the next value is the EOF
+			//WHILE LOOP to read files
+			while (infile.hasNext() == true && recordCount < MAX_ITEMS)
+			{
+				//read a complete record; assign each value to an element of the appropriate array
+				itemIDs[recordCount] = infile.nextInt();
+				itemNames[recordCount] = infile.next();
+				itemPrices[recordCount] = infile.nextDouble();
+				inStockCounts[recordCount] = infile.nextInt();
+				recordCount++;
+			} //END OF WHILE LOOP
+			
+			//close Scanner file
+			infile.close();
+		} //END OF try
+		catch (IOException ex)
+		{
+			recordCount = NOT_FOUND;
+		} //END OF catch
+	} //setLoadItems
+	
+	//set method; loads items into inventory from file
+	public void setLoadItems(String borrowedFileName, int borrowedSize)
+	{
+		itemQuantity = new int[borrowedSize];
+		orderCost = new double[borrowedSize];
+		//resets the value each time the method is invoked
+		recordCount = RESET_VALUE; 
+		
+		//try block
+		try
+		{
+			//declare all local variables
+			Scanner infile = new Scanner(new FileInputStream(borrowedFileName));
+			//.hasNext() will be False if the next value is the EOF
+			//WHILE LOOP to read files
+			while (infile.hasNext() == true && recordCount < borrowedSize)
+			{
+				//read a complete record; assign each value to an element of the appropriate array
+				itemIDs[recordCount] = infile.nextInt();
+				itemNames[recordCount] = infile.next();
+				itemPrices[recordCount] = infile.nextDouble();
+				itemQuantity[recordCount] = infile.nextInt();
+				orderCost[recordCount] = infile.nextDouble();	
+				recordCount++;
+			} //END OF WHILE LOOP
+			
+			//close Scanner file
+			infile.close();
+		} //END OF try
+		catch (IOException ex)
+		{
+			recordCount = NOT_FOUND;
+		} //END OF catch
+	} //setLoadItems
+	
+	//get method; bubble sort
+	public void getBubbleSort()
+	{
+		//local variables
+		int localIndex = 0;
+		int last = recordCount - 1;
+		boolean swap;
+		
+		//while loop to sort entire array
+		while(last > 0)
+		{
+			localIndex = 0;
+			swap = false;
+			
+			while(localIndex < last)
+			{
+				while(itemIDs[localIndex] > itemIDs[localIndex + 1])
+				{
+					//swap two items in array using a temporary holding number
+					int temporaryHold = itemIDs[localIndex];
+					itemIDs[localIndex] = itemIDs[localIndex + 1];
+					itemIDs[localIndex + 1] = temporaryHold;
+					swap = true;
+				}
+				localIndex++;
+			} //END OF WHILE LOOP
+			
+			// IF/ELSE to check if there was a swap
+			if(swap == false)
+			{
+				last = 0;
+			}
+			else
+			{
+				last = last - 1;
+			} //END OF IF/ELSE
+		} //END OF WHILE LOOP
+	} //END OF getBubbleSort
+	
+	//set method; set the search index based on getSearchResults() method
+	public void setSearchIndex(String borrowedTarget)
+	{
+		itemSearchIndex = getSearchResults(borrowedTarget);
+	} //END OF getSearchIndex
+	
+	//get method; gets in stock counts
+	public int[] getInStockCounts()
+	{
+		return inStockCounts;
+	} //END OF getInStockCounts
+	
+	//get method; gets item IDs
+	public int[] getItemIDs()
+	{
+		return itemIDs;
+	} //END OF getItemIDs
+	
+	//get method; gets item names list
+	public String[] getItemNames()
+	{
+		return itemNames;
+	} //END OF getItemNames
+	
+	//get method; gets item prices list
+	public double[] getItemPrices()
+	{
+		return itemPrices;
+	} //END OF getItemPrices
+	
+	//get method; gets the item quantity list
+	public int[] getQuantity()
+	{
+		return itemQuantity;
+	} //END OF getQuantity
+	
+	//get method; gets the order costs list
+	public double[] getOrderCosts()
+	{
+		return orderCost;
+	} //END OF getOrderCosts
+	
+	//get method; gets discount names list
+	public String[] getDiscountNames()
+	{
+		return DISCOUNT_NAMES;
+	} //END OF getDiscountNames
+	
+	//get method; gets discount rates list
+	public double[] getDiscountRates()
+	{
+		return DISCOUNT_RATES;
+	} //END OF getDiscountRates
+	
+	//get method; gets prize names list
+	public String[] getPrizeNames()
+	{
+		return PRIZE_NAMES;
+	} //END OF getPrizeNames
+	
+	//get method; gets the item search index
+	public int getSearchIndex()
+	{
+		return itemSearchIndex;
+	} //END OF getSearchIndex
+	
+	//get method; gets the current item ID
+	public int getCurrentID()
+	{
+		return itemIDs[itemSearchIndex];
+	} //END OF getCurrentID
+	
+	//get method; gets the record count for current file
+	public int getRecordCount()
+	{
+		return recordCount;
+	} //END OF getRecordCount
+	
+	//get method; gets the results of the sequential search
+	public int getSearchResults(String borrowedTarget)
+	{
+		getBubbleSort();
+		//declare local variable
+		int localIndex = 0;
+		int found = NOT_FOUND;
+		
+		//WHILE LOOP
+		while (localIndex < recordCount)
+		{
+			if(Integer.parseInt(borrowedTarget) == itemIDs[localIndex])
+			{
+				found = localIndex;
+				localIndex = recordCount;
+			}
+			else
+			{
+				localIndex++;
+			} //END OF IF/ELSE
+		} //END OF WHILE LOOP
+		
+		return found;
+	} //END OF getSearchResults
+
+} //END OF Inventory class
+
+//AUTHOR: Ponsavanh Khammanivong
+//COURSE: CPT 187
+//PURPOSE: The purpose of this class is to be an extension of a blueprint for a construction planning program
+//STARTDATE: 10 OCTOBER, 2019
+
+package edu.cpt187.khammanivong.participation;
+
+import java.util.Random;
+
+public class SodOrder extends Inventory 
+{
+	
+	//declare and initialize class constants
+	private final double TAX_RATE = 0.075;
+	
+	//declare and initialize all non-CONSTANT class attributes
+	private int[] itemCounts;
+	private int[] discountCounts;
+	private int[] prizeCounts;
+	private char discountType = ' ';
+	private String itemName = "";
+	private double itemPrice = 0.0;
+	private String discountName = " ";
+	private double discountRate = 0.0;
+	private int howMany = 0;
+	private int lastItemSelectedIndex = 0;
+	private Random prizeGenerator = new Random();
+	private String prizeName = "";
+	
+	//the SodOrder class constructor
+	public SodOrder()
+	{
+	} //END OF SodOrder constructor
+	
+	//set method; sets the many array sizes to borrowedRecordCount
+	public void setCountArrays(int borrowedRecordCount)
+	{
+		itemCounts = new int[borrowedRecordCount];
+		discountCounts = new int[borrowedRecordCount];
+		prizeCounts = new int[borrowedRecordCount];
+	} //END OF setCountArrays
+	
+	//set method; sets the last item selected based on borrowed search index
+	public void setItemSelection(int borrowedID)
+	{
+		lastItemSelectedIndex = borrowedID;
+		itemCounts[lastItemSelectedIndex]++;
+	} //END OF setItemSelection
+	
+	//set method; sets itemName
+	public void setItemName(String[] borrowedItemNames)
+	{
+		itemName = borrowedItemNames[lastItemSelectedIndex];
+	} //END OF setItemName
+	
+	//set method; sets itemPrice
+	public void setItemPrice(double[] borrowedItemPrices)
+	{
+		itemPrice = borrowedItemPrices[lastItemSelectedIndex];
+	} //END OF setItemPrice
+	
+	//set method; sets how many items
+	public void setHowMany(int borrowedHowMany)
+	{
+		howMany = borrowedHowMany;
+	} //END OF setHowMany
+	
+	//set method; sets the discount type
+	public void setDiscountType(char borrowedMenuSelection)
+	{
+		discountType = borrowedMenuSelection;
+	} //END OF setDiscountType
+	
+	//set method; sets the discount name
+	public void setDiscountName(String[] borrowedDiscountNames)
+	{
+		// IF/ELSE to see which discount rate to set to
+		if(discountType == 'A')
+		{
+			discountName = borrowedDiscountNames[0];
+			++discountCounts[0];
+		}
+		else if(discountType == 'B')
+		{
+			discountName = borrowedDiscountNames[1];
+			++discountCounts[1];
+		}
+		else
+		{
+			discountName = borrowedDiscountNames[2];
+			++discountCounts[2];
+		}
+	} //END OF setDiscountName
+	
+	//set method; sets the discount rate
+	public void setDiscountRate(double[] borrowedDiscountRates)
+	{
+		// IF/ELSE to see which discount rate to set to
+		if(discountType == 'A')
+		{
+			discountRate = borrowedDiscountRates[0];
+		}
+		else if(discountType == 'B')
+		{
+			discountRate = borrowedDiscountRates[1];
+		}
+		else
+		{
+			discountRate = borrowedDiscountRates[2];
+		} //END OF IF/ELSE
+	} //END OF setDiscountRate
+	
+	//set method; sets the prize name
+	public void setPrizeName()
+	{
+		//set the prize name
+		prizeName = getPrizeNames()[getRandomNumber()];
+		
+		// IF/ELSE statement to increase the prize count
+		if(prizeName == getPrizeNames()[0])
+		{
+			prizeCounts[0]++;
+		}
+		else if(prizeName == getPrizeNames()[1])
+		{
+			prizeCounts[1]++;
+		}
+		else
+		{
+			prizeCounts[2]++;
+		} //END OF IF/ELSE
+	} //END OF setPrizeName
+	
+	//set method; sets decrease in stock
+	public void setDecreaseInStock(Inventory borrowedInventoryObject)
+	{
+		borrowedInventoryObject.setReduceStock(howMany);
+	} //END OF setDecreaseInStock
+	
+	//get method; gets in stock count
+	public int getInStockCount(int[] borrowedInStockCounts)
+	{
+		return borrowedInStockCounts[lastItemSelectedIndex];
+	} //END OF getInStockCount
+	
+	//get method; gets item name
+	public String getItemName()
+	{
+		return itemName;
+	} //END OF getItemName
+	
+	//get method; gets item price
+	public double getItemPrice()
+	{
+		return itemPrice;
+	} //END OF getItemPrice
+	
+	//get method; gets how many items
+	public int getHowMany()
+	{
+		return howMany;
+	} //END OF getHowMany
+	
+	//get method; gets discount name
+	public String getDiscountName()
+	{
+		return discountName;
+	} //END OF getDiscountName
+	
+	//get method; gets discount rate
+	public double getDiscountRate()
+	{
+		return discountRate;
+	} //END OF getDiscountRate
+	
+	//get method; gets the discount amount
+	public double getDiscountAmount()
+	{
+		return itemPrice * discountRate;
+	} //END OF getDiscountAmount
+	
+	//get method; gets the discount price
+	public double getDiscountPrice()
+	{
+		return itemPrice - getDiscountAmount();
+	} //END OF getDiscountPrice
+	
+	//get method; gets the sub total
+	public double getSubTotal()
+	{
+		return howMany * getDiscountPrice();
+	} //END OF getDiscountPrice
+	
+	//get method; gets the tax rate
+	public double getTaxRate()
+	{
+		return TAX_RATE;
+	} //END OF getTaxRate
+	
+	//get method; gets the tax amount
+	public double getTaxAmount()
+	{
+		return TAX_RATE * getSubTotal();
+	} //END OF getTaxAmount
+	
+	//get method; gets the total cost
+	public double getTotalCost()
+	{
+		return getSubTotal() + getTaxAmount();
+	} //END OF getTotalCost
+	
+	public int[] getItemCounts()
+	{
+		return itemCounts;
+	} //END OF getItemCounts
+	
+	public int[] getDiscountCounts()
+	{
+		return discountCounts;
+	} //END OF getDiscountsCounts
+	
+	public int[] getPrizeCounts()
+	{
+		return prizeCounts;
+	} //END OF getPrizeCounts
+	public String getPrizeName()
+	{
+		return prizeName;
+	} //END OF getPrizeName
+	
+	public int getRandomNumber()
+	{
+		return prizeGenerator.nextInt(getPrizeNames().length);
+	} //END OF getRandomNumber()
+
+} //END OF SodOrder Class
